@@ -107,7 +107,10 @@ class WindowManager {
    * @returns void
    */
   createAppTray() {
-    const trayIcon = join(APP_ROOT, 'assets', 'icon.png');
+    const trayIcon =
+      process.platform === 'darwin'
+        ? join(APP_ROOT, 'assets', 'icons', '16x16.png')
+        : join(APP_ROOT, 'assets', 'icon.png');
     this.tray = new Tray(nativeImage.createFromPath(trayIcon));
     this.tray.setIgnoreDoubleClickEvents(true);
 
