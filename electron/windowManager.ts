@@ -107,12 +107,42 @@ class WindowManager {
    * @returns void
    */
   createAppTray() {
+    const TRAY_ICONS_ROOT = [APP_ROOT, 'assets', 'icons', 'tray'];
     const trayIcon =
       process.platform === 'darwin'
         ? join(APP_ROOT, 'assets', 'icons', '16x16.png')
         : join(APP_ROOT, 'assets', 'icon.png');
-    this.tray = new Tray(nativeImage.createFromPath(trayIcon));
+
+    const nativeImageFromImagePath = nativeImage.createFromPath(trayIcon);
+
+    nativeImageFromImagePath.setTemplateImage(true);
+
+    this.tray = new Tray(nativeImageFromImagePath);
     this.tray.setIgnoreDoubleClickEvents(true);
+
+    const quitIcon =
+      process.platform === 'darwin'
+        ? join(...TRAY_ICONS_ROOT, 'quit', '16x16.png')
+        : join(...TRAY_ICONS_ROOT, 'quit', '96x96.png');
+
+    const MinimizeIcon =
+      process.platform === 'darwin'
+        ? join(...TRAY_ICONS_ROOT, 'minimize', '16x16.png')
+        : join(...TRAY_ICONS_ROOT, 'minimize', '96x96.png');
+
+    const showIcon =
+      process.platform === 'darwin'
+        ? join(...TRAY_ICONS_ROOT, 'show', '16x16.png')
+        : join(...TRAY_ICONS_ROOT, 'show', '96x96.png');
+
+    const nativeQuitImageFromPath = nativeImage.createFromPath(quitIcon);
+    const nativeMinimizeImageFromPath = nativeImage.createFromPath(MinimizeIcon);
+    const nativeShowImageFromPath = nativeImage.createFromPath(showIcon);
+
+    // mark images as template for OS light and dark mode
+    nativeQuitImageFromPath.setTemplateImage(true);
+    nativeMinimizeImageFromPath.setTemplateImage(true);
+    nativeShowImageFromPath.setTemplateImage(true);
 
     /**
      * `hides` polar windows
@@ -145,15 +175,21 @@ class WindowManager {
 
     const contextMenu: Menu = Menu.buildFromTemplate([
       {
-        label: 'Minimize to tray',
+        label: 'Minimize to Tray',
         click: handleOnHideClick,
+        icon: nativeMinimizeImageFromPath,
       },
       {
-        label: 'Show window',
+        label: 'Show Window',
         click: handleOnShowClick,
+        icon: nativeShowImageFromPath,
+      },
+      {
+        type: 'separator',
       },
       {
         label: 'Quit Polar',
+        icon: nativeQuitImageFromPath,
         click: handleQuitClick,
       },
     ]);
