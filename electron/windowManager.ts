@@ -1,4 +1,12 @@
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, Tray } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  nativeImage,
+  nativeTheme,
+  Tray,
+} from 'electron';
 import { warn } from 'electron-log';
 import windowState from 'electron-window-state';
 import { join } from 'path';
@@ -8,9 +16,11 @@ import { APP_ROOT, BASE_URL, IS_DEV } from './constants';
 import { clearLndProxyCache, initLndProxy } from './lnd/lndProxyServer';
 import { initTapdProxy } from './tapd/tapdProxyServer';
 
+let tray: Tray | null = null;
+
 class WindowManager {
   mainWindow: BrowserWindow | null = null;
-  tray: Tray | null = null;
+  isDarkMode = nativeTheme.shouldUseDarkColors;
 
   start() {
     app.on('ready', async () => {
@@ -48,9 +58,7 @@ class WindowManager {
     });
 
     // create App system tray icon with context menus
-    if (!this.tray) {
-      this.createAppTray();
-    }
+    this.createAppTray();
 
     this.mainWindow.setMenuBarVisibility(false);
 
@@ -108,41 +116,47 @@ class WindowManager {
    */
   createAppTray() {
     const TRAY_ICONS_ROOT = [APP_ROOT, 'assets', 'icons', 'tray'];
+
+    /**
+     * select `light` or `dark` icon based on host OS
+     * system theme
+     * @param path
+     * @returns
+     */
+    const iconSelector = (path: 'quit' | 'minimize' | 'show') => {
+      if (process.platform === 'darwin') {
+        const imagePath = join(...TRAY_ICONS_ROOT, path, '16x16Template.png');
+        const nativeImageFromPath = nativeImage.createFromPath(imagePath);
+        nativeImageFromImagePath.setTemplateImage(true);
+        return nativeImageFromPath;
+      }
+
+      if (nativeTheme.shouldUseDarkColors) {
+        const imagePath = join(...TRAY_ICONS_ROOT, path, 'icon-dark.png');
+        const nativeImageFromPath = nativeImage.createFromPath(imagePath);
+        // nativeImageFromImagePath.setTemplateImage(true);
+        return nativeImageFromPath;
+      }
+
+      if (!this.isDarkMode) {
+        const imagePath = join(...TRAY_ICONS_ROOT, path, 'icon-light.png');
+        const nativeImageFromPath = nativeImage.createFromPath(imagePath);
+        // nativeImageFromImagePath.setTemplateImage(true);
+        return nativeImageFromPath;
+      }
+    };
+
     const trayIcon =
       process.platform === 'darwin'
-        ? join(APP_ROOT, 'assets', 'icons', '16x16.png')
-        : join(APP_ROOT, 'assets', 'icon.png');
+        ? join(...TRAY_ICONS_ROOT, '16x16Template.png')
+        : join(...TRAY_ICONS_ROOT, '1024x1024-white.png');
 
     const nativeImageFromImagePath = nativeImage.createFromPath(trayIcon);
 
     nativeImageFromImagePath.setTemplateImage(true);
 
-    this.tray = new Tray(nativeImageFromImagePath);
-    this.tray.setIgnoreDoubleClickEvents(true);
-
-    const quitIcon =
-      process.platform === 'darwin'
-        ? join(...TRAY_ICONS_ROOT, 'quit', '16x16.png')
-        : join(...TRAY_ICONS_ROOT, 'quit', '96x96.png');
-
-    const MinimizeIcon =
-      process.platform === 'darwin'
-        ? join(...TRAY_ICONS_ROOT, 'minimize', '16x16.png')
-        : join(...TRAY_ICONS_ROOT, 'minimize', '96x96.png');
-
-    const showIcon =
-      process.platform === 'darwin'
-        ? join(...TRAY_ICONS_ROOT, 'show', '16x16.png')
-        : join(...TRAY_ICONS_ROOT, 'show', '96x96.png');
-
-    const nativeQuitImageFromPath = nativeImage.createFromPath(quitIcon);
-    const nativeMinimizeImageFromPath = nativeImage.createFromPath(MinimizeIcon);
-    const nativeShowImageFromPath = nativeImage.createFromPath(showIcon);
-
-    // mark images as template for OS light and dark mode
-    nativeQuitImageFromPath.setTemplateImage(true);
-    nativeMinimizeImageFromPath.setTemplateImage(true);
-    nativeShowImageFromPath.setTemplateImage(true);
+    tray = new Tray(nativeImageFromImagePath);
+    tray.setIgnoreDoubleClickEvents(true);
 
     /**
      * `hides` polar windows
@@ -175,26 +189,28 @@ class WindowManager {
 
     const contextMenu: Menu = Menu.buildFromTemplate([
       {
-        label: 'Minimize to Tray',
+        id: 'miniOpt',
+        label: 'Minimize Window',
         click: handleOnHideClick,
-        icon: nativeMinimizeImageFromPath,
+        icon: iconSelector('minimize'),
       },
       {
         label: 'Show Window',
         click: handleOnShowClick,
-        icon: nativeShowImageFromPath,
+        icon: iconSelector('show'),
       },
       {
         type: 'separator',
       },
       {
         label: 'Quit Polar',
-        icon: nativeQuitImageFromPath,
+        icon: iconSelector('quit'),
         click: handleQuitClick,
       },
     ]);
-    this.tray.setToolTip('Polar');
-    this.tray.setContextMenu(contextMenu);
+
+    tray.setToolTip('Polar');
+    tray.setContextMenu(contextMenu);
   }
 }
 
