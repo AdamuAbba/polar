@@ -16,11 +16,10 @@ import { APP_ROOT, BASE_URL, IS_DEV } from './constants';
 import { clearLndProxyCache, initLndProxy } from './lnd/lndProxyServer';
 import { initTapdProxy } from './tapd/tapdProxyServer';
 
-let tray: Tray | null = null;
-
 class WindowManager {
   mainWindow: BrowserWindow | null = null;
   isDarkMode = nativeTheme.shouldUseDarkColors;
+  tray: Tray | null = null;
 
   start() {
     app.on('ready', async () => {
@@ -108,6 +107,88 @@ class WindowManager {
     }
   }
 
+  TRAY_ICONS_ROOT: string[] = [APP_ROOT, 'assets', 'icons', 'tray'];
+
+  /**
+   * select `light` or `dark` icon based on host OS
+   * system theme
+   * @param path
+   * @returns
+   */
+  iconSelector = (path: 'quit' | 'minimize' | 'show') => {
+    if (nativeTheme.shouldUseDarkColors) {
+      const iconName =
+        process.platform === 'darwin' ? '16x16Template.png' : 'icon-dark.png';
+      const imagePath = join(...this.TRAY_ICONS_ROOT, path, iconName);
+      const nativeImageFromPath = nativeImage.createFromPath(imagePath);
+      nativeImageFromPath.setTemplateImage(true);
+      return nativeImageFromPath;
+    }
+
+    if (!nativeTheme.shouldUseDarkColors) {
+      const iconName =
+        process.platform === 'darwin' ? '16x16Template.png' : 'icon-light.png';
+      const imagePath = join(...this.TRAY_ICONS_ROOT, path, iconName);
+      const nativeImageFromPath = nativeImage.createFromPath(imagePath);
+      nativeImageFromPath.setTemplateImage(true);
+      return nativeImageFromPath;
+    }
+  };
+
+  /**
+   * `hides` polar windows
+   */
+  handleOnHideClick = () => {
+    if (process.platform !== 'darwin') {
+      app.dock?.hide();
+    }
+    this.mainWindow?.setSkipTaskbar(true);
+    this.mainWindow?.hide();
+  };
+
+  /**
+   * `shows` polar window
+   */
+  handleOnShowClick = () => {
+    if (process.platform !== 'darwin') {
+      app.dock?.show();
+    }
+    this.mainWindow?.setSkipTaskbar(false);
+    this.mainWindow?.show();
+  };
+
+  /**
+   * closes all windows and quits the app
+   */
+  handleQuitClick = () => {
+    app.quit();
+  };
+
+  updateTrayIcons(tray: Tray | null) {
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Minimize Window',
+        click: this.handleOnHideClick,
+        icon: this.iconSelector('minimize'),
+      },
+      {
+        label: 'Show Window',
+        click: this.handleOnShowClick,
+        icon: this.iconSelector('show'),
+      },
+      {
+        type: 'separator',
+      },
+      {
+        label: 'Quit Polar',
+        click: this.handleQuitClick,
+        icon: this.iconSelector('quit'),
+      },
+    ]);
+
+    tray?.setContextMenu(contextMenu);
+  }
+
   /**
    * Creates App tray icon with a menu of options
    * to `Hide/Show` the app window
@@ -115,102 +196,21 @@ class WindowManager {
    * @returns void
    */
   createAppTray() {
-    const TRAY_ICONS_ROOT = [APP_ROOT, 'assets', 'icons', 'tray'];
-
-    /**
-     * select `light` or `dark` icon based on host OS
-     * system theme
-     * @param path
-     * @returns
-     */
-    const iconSelector = (path: 'quit' | 'minimize' | 'show') => {
-      if (process.platform === 'darwin') {
-        const imagePath = join(...TRAY_ICONS_ROOT, path, '16x16Template.png');
-        const nativeImageFromPath = nativeImage.createFromPath(imagePath);
-        nativeImageFromImagePath.setTemplateImage(true);
-        return nativeImageFromPath;
-      }
-
-      if (nativeTheme.shouldUseDarkColors) {
-        const imagePath = join(...TRAY_ICONS_ROOT, path, 'icon-dark.png');
-        const nativeImageFromPath = nativeImage.createFromPath(imagePath);
-        // nativeImageFromImagePath.setTemplateImage(true);
-        return nativeImageFromPath;
-      }
-
-      if (!this.isDarkMode) {
-        const imagePath = join(...TRAY_ICONS_ROOT, path, 'icon-light.png');
-        const nativeImageFromPath = nativeImage.createFromPath(imagePath);
-        // nativeImageFromImagePath.setTemplateImage(true);
-        return nativeImageFromPath;
-      }
-    };
-
     const trayIcon =
       process.platform === 'darwin'
-        ? join(...TRAY_ICONS_ROOT, '16x16Template.png')
-        : join(...TRAY_ICONS_ROOT, '1024x1024-white.png');
+        ? join(...this.TRAY_ICONS_ROOT, '16x16Template.png')
+        : join(...this.TRAY_ICONS_ROOT, '1024x1024-white.png');
+    const nativeImageFromPath = nativeImage.createFromPath(trayIcon);
+    nativeImageFromPath.setTemplateImage(true);
+    this.tray = new Tray(nativeImageFromPath);
 
-    const nativeImageFromImagePath = nativeImage.createFromPath(trayIcon);
+    // initial creation of tray menu
+    this.updateTrayIcons(this.tray);
 
-    nativeImageFromImagePath.setTemplateImage(true);
-
-    tray = new Tray(nativeImageFromImagePath);
-    tray.setIgnoreDoubleClickEvents(true);
-
-    /**
-     * `hides` polar windows
-     */
-    const handleOnHideClick = () => {
-      if (process.platform !== 'darwin') {
-        app.dock?.hide();
-      }
-      this.mainWindow?.setSkipTaskbar(true);
-      this.mainWindow?.hide();
-    };
-
-    /**
-     * `shows` polar window
-     */
-    const handleOnShowClick = () => {
-      if (process.platform !== 'darwin') {
-        app.dock?.show();
-      }
-      this.mainWindow?.setSkipTaskbar(false);
-      this.mainWindow?.show();
-    };
-
-    /**
-     * closes all windows and quits the app
-     */
-    const handleQuitClick = () => {
-      app.quit();
-    };
-
-    const contextMenu: Menu = Menu.buildFromTemplate([
-      {
-        id: 'miniOpt',
-        label: 'Minimize Window',
-        click: handleOnHideClick,
-        icon: iconSelector('minimize'),
-      },
-      {
-        label: 'Show Window',
-        click: handleOnShowClick,
-        icon: iconSelector('show'),
-      },
-      {
-        type: 'separator',
-      },
-      {
-        label: 'Quit Polar',
-        icon: iconSelector('quit'),
-        click: handleQuitClick,
-      },
-    ]);
-
-    tray.setToolTip('Polar');
-    tray.setContextMenu(contextMenu);
+    nativeTheme.on('updated', () => {
+      // re-create tray menu when system theme changes
+      this.updateTrayIcons(this?.tray);
+    });
   }
 }
 
