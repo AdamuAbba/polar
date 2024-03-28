@@ -119,8 +119,21 @@ class WindowManager {
    */
   iconSelector = (path: 'quit' | 'minimize' | 'show') => {
     if (nativeTheme.shouldUseDarkColors) {
-      const iconName =
-        process.platform === 'darwin' ? '16x16Template.png' : 'icon-dark.png';
+      let iconName;
+      switch (process.platform) {
+        case 'darwin':
+          iconName = '16x16Template.png';
+          break;
+        case 'win32':
+          iconName = '16x16icon-dark.png';
+          break;
+        case 'linux':
+          iconName = '96x96icon-dark.png';
+          break;
+        default:
+          iconName = '96x96icon-dark.png';
+          break;
+      }
       const imagePath = join(...this.TRAY_ICONS_ROOT, path, iconName);
       const nativeImageFromPath = nativeImage.createFromPath(imagePath);
       nativeImageFromPath.setTemplateImage(true);
@@ -128,8 +141,21 @@ class WindowManager {
     }
 
     if (!nativeTheme.shouldUseDarkColors) {
-      const iconName =
-        process.platform === 'darwin' ? '16x16Template.png' : 'icon-light.png';
+      let iconName;
+      switch (process.platform) {
+        case 'darwin':
+          iconName = '16x16Template.png';
+          break;
+        case 'win32':
+          iconName = '16x16icon-light.png';
+          break;
+        case 'linux':
+          iconName = '96x96icon-light.png';
+          break;
+        default:
+          iconName = '96x96icon-light.png';
+          break;
+      }
       const imagePath = join(...this.TRAY_ICONS_ROOT, path, iconName);
       const nativeImageFromPath = nativeImage.createFromPath(imagePath);
       nativeImageFromPath.setTemplateImage(true);
@@ -187,6 +213,25 @@ class WindowManager {
     tray?.setContextMenu(contextMenu);
   }
 
+  updateTrayMainIcon() {
+    let trayIcon;
+    if (process.platform === 'darwin') {
+      trayIcon = join(...this.TRAY_ICONS_ROOT, '16x16Template.png');
+    }
+    if (process.platform === 'win32' && !nativeTheme.shouldUseDarkColors) {
+      trayIcon = join(APP_ROOT, 'assets', 'icons', '1024x1024.png');
+    }
+    if (process.platform === 'win32' && nativeTheme.shouldUseDarkColors) {
+      trayIcon = join(...this.TRAY_ICONS_ROOT, '1024x1024-white.png');
+    }
+    if (process.platform === 'linux') {
+      trayIcon = join(...this.TRAY_ICONS_ROOT, '1024x1024-white.png');
+    }
+    const nativeImageFromPath = nativeImage.createFromPath(trayIcon as string);
+    nativeImageFromPath.setTemplateImage(true);
+    this.tray = new Tray(nativeImageFromPath);
+  }
+
   /**
    * Creates App tray icon with a menu of options
    * to `Hide/Show` the app window
@@ -194,19 +239,18 @@ class WindowManager {
    * @returns void
    */
   createAppTray() {
-    const trayIcon =
-      process.platform === 'darwin'
-        ? join(...this.TRAY_ICONS_ROOT, '16x16Template.png')
-        : join(...this.TRAY_ICONS_ROOT, '1024x1024-white.png');
-    const nativeImageFromPath = nativeImage.createFromPath(trayIcon);
-    nativeImageFromPath.setTemplateImage(true);
-    this.tray = new Tray(nativeImageFromPath);
-
+    this.updateTrayMainIcon();
     // initial creation of tray menu
     this.updateTrayIcons(this.tray);
 
     nativeTheme.on('updated', () => {
-      // re-create tray menu when system theme changes
+      // destroy existing rendered tray icon to avoid duplicates
+      if (this.tray) {
+        this.tray.destroy();
+      }
+      // re-create the tray icon when system theme changes
+      this.updateTrayMainIcon();
+      // re-create tray context menu when system theme changes
       this.updateTrayIcons(this?.tray);
     });
   }
