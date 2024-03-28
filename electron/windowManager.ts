@@ -213,25 +213,6 @@ class WindowManager {
     tray?.setContextMenu(contextMenu);
   }
 
-  updateTrayMainIcon() {
-    let trayIcon;
-    if (process.platform === 'darwin') {
-      trayIcon = join(...this.TRAY_ICONS_ROOT, '16x16Template.png');
-    }
-    if (process.platform === 'win32' && !nativeTheme.shouldUseDarkColors) {
-      trayIcon = join(APP_ROOT, 'assets', 'icons', '1024x1024.png');
-    }
-    if (process.platform === 'win32' && nativeTheme.shouldUseDarkColors) {
-      trayIcon = join(...this.TRAY_ICONS_ROOT, '1024x1024-white.png');
-    }
-    if (process.platform === 'linux') {
-      trayIcon = join(...this.TRAY_ICONS_ROOT, '1024x1024-white.png');
-    }
-    const nativeImageFromPath = nativeImage.createFromPath(trayIcon as string);
-    nativeImageFromPath.setTemplateImage(true);
-    this.tray = new Tray(nativeImageFromPath);
-  }
-
   /**
    * Creates App tray icon with a menu of options
    * to `Hide/Show` the app window
@@ -239,17 +220,18 @@ class WindowManager {
    * @returns void
    */
   createAppTray() {
-    this.updateTrayMainIcon();
+    const trayIcon =
+      process.platform === 'darwin'
+        ? join(...this.TRAY_ICONS_ROOT, '16x16Template.png')
+        : join(...this.TRAY_ICONS_ROOT, '1024x1024-white.png');
+    const nativeImageFromPath = nativeImage.createFromPath(trayIcon as string);
+    nativeImageFromPath.setTemplateImage(true);
+    this.tray = new Tray(nativeImageFromPath);
+
     // initial creation of tray menu
     this.updateTrayIcons(this.tray);
 
     nativeTheme.on('updated', () => {
-      // destroy existing rendered tray icon to avoid duplicates
-      if (this.tray) {
-        this.tray.destroy();
-      }
-      // re-create the tray icon when system theme changes
-      this.updateTrayMainIcon();
       // re-create tray context menu when system theme changes
       this.updateTrayIcons(this?.tray);
     });
